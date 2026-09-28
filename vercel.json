@@ -7,6 +7,7 @@
     { "source": "/api/tasks/claim", "destination": "/api/tasks/claim.js" },
     { "source": "/api/ambassador/apply", "destination": "/api/ambassador/apply.js" },
     { "source": "/api/campaigns/create", "destination": "/api/campaigns/create.js" },
-    { "source": "/api/campaigns/click", "destination": "/api/campaigns/click.js" }
+    { "source": "/api/campaigns/click", "destination": "/api/campaigns/click.js" },
+    { "source": "/api/campaigns/check", "destination": "/api/campaigns/check.js" }
   ]
 }
