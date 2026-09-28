@@ -4,6 +4,7 @@
     { "source": "/api/webhook", "destination": "/api/webhook.js" },
     { "source": "/api/ads", "destination": "/api/ads.js" },
     { "source": "/api/user", "destination": "/api/user.js" },
-    { "source": "/api/tasks/claim", "destination": "/api/tasks/claim.js" }
+    { "source": "/api/tasks/claim", "destination": "/api/tasks/claim.js" },
+    { "source": "/api/ambassador/apply", "destination": "/api/ambassador/apply.js" }
   ]
 }
