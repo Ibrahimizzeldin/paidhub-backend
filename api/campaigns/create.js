@@ -1,6 +1,13 @@
 const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
+function generateCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = 'PH-';
+  for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+  return code;
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -20,13 +27,15 @@ module.exports = async (req, res) => {
   const { data: user } = await supabase.from('profiles').select('*').eq('telegram_id', telegramId).single();
   if (!user) return res.status(404).send('User not found');
 
-  // توليد مبلغ فريد
-  const { data: pending } = await supabase.from('campaigns').select('payment_amount').eq('status', 'pending_payment').order('payment_amount', { ascending: false }).limit(1);
-  let uniqueAmount = cost + 0.0001;
-  if (pending && pending.length > 0 && pending[0].payment_amount) {
-    uniqueAmount = parseFloat(pending[0].payment_amount) + 0.0001;
+  // توليد كود فريد غير مستخدم
+  let paymentCode = generateCode();
+  let attempts = 0;
+  while (attempts < 10) {
+    const { data: existing } = await supabase.from('campaigns').select('id').eq('payment_code', paymentCode).single();
+    if (!existing) break;
+    paymentCode = generateCode();
+    attempts++;
   }
-  uniqueAmount = Math.round(uniqueAmount * 1000000) / 1000000;
 
   const { data: campaign, error } = await supabase.from('campaigns').insert({
     user_id: user.id,
@@ -38,11 +47,12 @@ module.exports = async (req, res) => {
     clicks_done: 0,
     cost: cost,
     cpc: CPC,
-    payment_amount: uniqueAmount,
+    payment_amount: cost,
+    payment_code: paymentCode,
     status: 'pending_payment'
   }).select().single();
 
   if (error) return res.status(500).json({ ok: false, error: error.message });
 
-  res.status(200).json({ ok: true, cost: cost, payment_amount: uniqueAmount, campaign_id: campaign.id });
+  res.status(200).json({ ok: true, cost: cost, payment_amount: cost, payment_code: paymentCode, campaign_id: campaign.id });
 };
