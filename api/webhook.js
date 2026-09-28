@@ -13,27 +13,64 @@ bot.start(async (ctx) => {
   let { data: user } = await supabase.from('profiles').select('*').eq('telegram_id', telegramId).single();
 
   if (!user) {
-    const referralCode = 'ref_' + Math.random().toString(36).substring(2, 8);
+    const referralCode = 'ref_' + Math.random().toString(36).substring(2, 10);
     let referredBy = null;
+    let referrerData = null;
+
     if (payload && payload.startsWith('ref_')) {
-       const refCode = payload.replace('ref_', '');
-       const { data: referrer } = await supabase.from('profiles').select('id').eq('referral_code', refCode).single();
-       if (referrer) referredBy = referrer.id;
+      const refCode = payload;
+      const { data: referrer } = await supabase.from('profiles').select('*').eq('referral_code', refCode).single();
+      if (referrer) {
+        referredBy = referrer.id;
+        referrerData = referrer;
+      }
     }
-    await supabase.from('profiles').insert({
+
+    const { data: newUser } = await supabase.from('profiles').insert({
       telegram_id: telegramId,
       username: username,
       first_name: firstName,
       referral_code: referralCode,
       referred_by: referredBy
-    });
+    }).select().single();
+
+    // مكافأة التسجيل للمُحيل: +0.01$
+    if (referrerData && newUser) {
+      const bonus = 0.01;
+      const newBalance = parseFloat(referrerData.balance || 0) + bonus;
+      const newTotal = parseFloat(referrerData.total_earned || 0) + bonus;
+      await supabase.from('profiles').update({
+        balance: newBalance,
+        total_earned: newTotal,
+        referrals_l1_count: (referrerData.referrals_l1_count || 0) + 1
+      }).eq('id', referrerData.id);
+
+      await supabase.from('transactions').insert({
+        user_id: referrerData.id,
+        amount: bonus,
+        type: 'referral_signup',
+        metadata: { from_user: telegramId }
+      });
+
+      // إشعار للمُحيل
+      try {
+        await bot.telegram.sendMessage(referrerData.telegram_id, '🎉 انضم صديق جديد عبر رابطك!\n💎 +0.01 USDT أُضيفت لرصيدك.');
+      } catch(e) {}
+    }
+
+    // إشعار للمستخدم الجديد
+    const webAppUrl = process.env.WEBAPP_URL || 'https://paidhub-frontend.vercel.app';
+    const keyboard = Markup.inlineKeyboard([
+      [Markup.button.webApp('🚀 فتح التطبيق | Open App', webAppUrl)]
+    ]);
+    return ctx.reply(`مرحباً بك في PaidHubEarn!\n\nاربح المال عن طريق مشاهدة الإعلانات وإكمال المهام.`, keyboard);
   }
 
-  const webAppUrl = process.env.WEBAPP_URL || 'https://paidhub.vercel.app';
+  const webAppUrl = process.env.WEBAPP_URL || 'https://paidhub-frontend.vercel.app';
   const keyboard = Markup.inlineKeyboard([
     [Markup.button.webApp('🚀 فتح التطبيق | Open App', webAppUrl)]
   ]);
-  ctx.reply(`مرحباً بك في PaidHubEarn!\n\nاربح المال عن طريق مشاهدة الإعلانات وإكمال المهام.`, keyboard);
+  ctx.reply(`أهلاً بعودتك ${firstName}!`, keyboard);
 });
 
 module.exports = async (req, res) => {
