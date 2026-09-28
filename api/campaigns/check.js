@@ -39,9 +39,23 @@ module.exports = async (req, res) => {
         if (jt.recipient && jt.recipient.address && jt.recipient.address !== PROJECT_WALLET) continue;
 
         const amount = parseFloat(jt.amount || 0) / 1000000;
+        const comment = (jt.comment || '').trim().toUpperCase();
+
         for (const camp of pendingCampaigns) {
-          if (!camp.payment_amount) continue;
-          if (Math.abs(parseFloat(camp.payment_amount) - amount) < 0.0000001) {
+          // مطابقة: التعليق يحتوي الكود
+          let commentMatch = false;
+          if (camp.payment_code && comment) {
+            if (comment.indexOf(camp.payment_code.toUpperCase()) !== -1) commentMatch = true;
+          }
+
+          // مطابقة: المبلغ الدقيق (احتياطي إن لم يوجد تعليق)
+          let amountMatch = false;
+          if (camp.payment_amount && Math.abs(parseFloat(camp.payment_amount) - amount) < 0.0000001) {
+            amountMatch = true;
+          }
+
+          // الشرط: يجب أن يكون هناك تطابق تعليق + مبلغ
+          if (commentMatch && amountMatch) {
             await supabase.from('campaigns').update({
               status: 'active',
               tx_hash: ev.event_id
