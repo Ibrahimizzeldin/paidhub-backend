@@ -4,6 +4,9 @@ const { createClient } = require('@supabase/supabase-js');
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
+const CHANNEL_URL = 'https://t.me/PaidHubEarn';
+const SUPPORT_URL = 'https://t.me/PaidHubSupport_Bot';
+
 bot.start(async (ctx) => {
   const telegramId = ctx.from.id;
   const username = ctx.from.username || '';
@@ -34,7 +37,6 @@ bot.start(async (ctx) => {
       referred_by: referredBy
     }).select().single();
 
-    // مكافأة التسجيل للمُحيل: +0.01$
     if (referrerData && newUser) {
       const bonus = 0.01;
       const newBalance = parseFloat(referrerData.balance || 0) + bonus;
@@ -52,25 +54,27 @@ bot.start(async (ctx) => {
         metadata: { from_user: telegramId }
       });
 
-      // إشعار للمُحيل
       try {
         await bot.telegram.sendMessage(referrerData.telegram_id, '🎉 انضم صديق جديد عبر رابطك!\n💎 +0.01 USDT أُضيفت لرصيدك.');
       } catch(e) {}
     }
-
-    // إشعار للمستخدم الجديد
-    const webAppUrl = process.env.WEBAPP_URL || 'https://paidhub-frontend.vercel.app';
-    const keyboard = Markup.inlineKeyboard([
-      [Markup.button.webApp('🚀 فتح التطبيق | Open App', webAppUrl)]
-    ]);
-    return ctx.reply(`مرحباً بك في PaidHubEarn!\n\nاربح المال عن طريق مشاهدة الإعلانات وإكمال المهام.`, keyboard);
   }
 
   const webAppUrl = process.env.WEBAPP_URL || 'https://paidhub-frontend.vercel.app';
   const keyboard = Markup.inlineKeyboard([
-    [Markup.button.webApp('🚀 فتح التطبيق | Open App', webAppUrl)]
+    [Markup.button.webApp('🚀 فتح التطبيق | Open App', webAppUrl)],
+    [Markup.button.url('📢 القناة الرسمية', CHANNEL_URL), Markup.button.url('💬 الدعم الفني', SUPPORT_URL)]
   ]);
-  ctx.reply(`أهلاً بعودتك ${firstName}!`, keyboard);
+
+  ctx.reply(`مرحباً بك في PaidHubEarn!\n\nاربح المال عن طريق مشاهدة الإعلانات وإكمال المهام.`, keyboard);
+});
+
+bot.command('channel', (ctx) => {
+  ctx.reply('📢 قناتنا الرسمية:\n' + CHANNEL_URL);
+});
+
+bot.command('support', (ctx) => {
+  ctx.reply('💬 الدعم الفني:\n' + SUPPORT_URL);
 });
 
 module.exports = async (req, res) => {
