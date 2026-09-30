@@ -9,6 +9,8 @@
     { "source": "/api/campaigns/create", "destination": "/api/campaigns/create.js" },
     { "source": "/api/campaigns/click", "destination": "/api/campaigns/click.js" },
     { "source": "/api/campaigns/check", "destination": "/api/campaigns/check.js" },
-    { "source": "/api/campaigns/cancel", "destination": "/api/campaigns/cancel.js" }
+    { "source": "/api/campaigns/cancel", "destination": "/api/campaigns/cancel.js" },
+    { "source": "/api/withdrawals/request", "destination": "/api/withdrawals/request.js" },
+    { "source": "/api/withdrawals/list", "destination": "/api/withdrawals/list.js" }
   ]
 }
