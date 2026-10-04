@@ -1,8 +1,8 @@
 const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
-const MIN_WITHDRAWAL = 1.0;
-const FEE = 0.05;
+const MIN_WITHDRAWAL = 0.1;
+const FEE = 0;
 
 async function sendTelegramMessage(chatId, text) {
   try {
@@ -28,7 +28,7 @@ module.exports = async (req, res) => {
   const amountNum = parseFloat(amount);
 
   if (!wallet.startsWith('UQ') && !wallet.startsWith('EQ')) return res.status(400).json({ ok: false, error: 'INVALID_WALLET' });
-  if (amountNum < MIN_WITHDRAWAL) return res.status(400).json({ ok: false, error: 'MIN_1_USDT' });
+  if (amountNum < MIN_WITHDRAWAL) return res.status(400).json({ ok: false, error: 'MIN_0.1_USDT' });
 
   const { data: user } = await supabase.from('profiles').select('*').eq('telegram_id', telegramId).single();
   if (!user) return res.status(404).send('User not found');
@@ -50,7 +50,7 @@ module.exports = async (req, res) => {
 
   const adminId = process.env.ADMIN_TELEGRAM_ID;
   if (adminId) {
-    const msg = 'طلب سحب جديد\n\nالمستخدم: ' + (user.first_name || 'User') + '\nID: ' + user.telegram_id + '\nالمبلغ: ' + amountNum.toFixed(4) + ' USDT\nالصافي: ' + netAmount.toFixed(4) + ' USDT\nالعنوان: ' + wallet + '\nرقم الطلب: ' + withdrawal.id;
+    const msg = 'طلب سحب جديد\n\nالمستخدم: ' + (user.first_name || 'User') + '\nID: ' + user.telegram_id + '\nالمبلغ: ' + amountNum.toFixed(4) + ' USDT\nالعنوان: ' + wallet + '\nرقم الطلب: ' + withdrawal.id;
     await sendTelegramMessage(adminId, msg);
   }
 
