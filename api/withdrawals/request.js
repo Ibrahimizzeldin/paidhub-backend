@@ -3,7 +3,7 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 
 const MIN_WITHDRAWAL = 0.1;
 const FEE = 0;
-const PAYOUTS_CHANNEL_ID = '-1003933767952'; // معرف قناة إثبات السحب
+const PAYOUTS_CHANNEL_ID = '-1003933767952';
 
 async function sendTelegramMessage(chatId, text) {
   try {
@@ -49,18 +49,12 @@ module.exports = async (req, res) => {
     metadata: { withdrawal_id: withdrawal.id, wallet: wallet }
   });
 
-  // 1. إشعار الأدمن
-  const adminId = process.env.ADMIN_TELEGRAM_ID;
-  if (adminId) {
-    const adminMsg = 'طلب سحب جديد\n\n' +
-                     'المستخدم: ' + (user.first_name || 'User') + '\n' +
-                     'ID: ' + user.telegram_id + '\n' +
-                     'المبلغ: ' + amountNum + ' USDT\n' +
-                     'المحفظة: ' + wallet;
-    await sendTelegramMessage(adminId, adminMsg);
-  }
+  const adminMsg = 'طلب سحب جديد\n\n' +
+                   'المستخدم: ' + (user.first_name || 'User') + '\n' +
+                   'ID: ' + user.telegram_id + '\n' +
+                   'المبلغ: ' + amountNum + ' USDT\n' +
+                   'المحفظة: ' + wallet;
 
-  // 2. إشعار قناة إثبات السحب (Payout Proofs)
   const channelMsg = '🔔 <b>طلب سحب جديد (Payout Proof)</b>\n\n' +
                      '👤 المستخدم: ' + (user.first_name || 'User') + '\n' +
                      '🆔 ID: ' + user.telegram_id + '\n' +
@@ -68,6 +62,13 @@ module.exports = async (req, res) => {
                      '📥 صافي المبلغ: ' + netAmount + ' USDT\n' +
                      '💳 المحفظة: <code>' + wallet + '</code>\n' +
                      '🔄 الحالة: قيد المعالجة (Pending)';
+
+  if (process.env.ADMIN_TELEGRAM_ID) {
+    await sendTelegramMessage(process.env.ADMIN_TELEGRAM_ID, adminMsg);
+  }
+  if (process.env.ADMIN_TELEGRAM_ID_2) {
+    await sendTelegramMessage(process.env.ADMIN_TELEGRAM_ID_2, adminMsg);
+  }
   await sendTelegramMessage(PAYOUTS_CHANNEL_ID, channelMsg);
 
   res.status(200).json({ ok: true, withdrawal_id: withdrawal.id, netAmount: netAmount });
