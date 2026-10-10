@@ -3,13 +3,14 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 
 const MIN_WITHDRAWAL = 0.1;
 const FEE = 0;
+const PAYOUTS_CHANNEL_ID = '-1003933767952'; // معرف قناة إثبات السحب
 
 async function sendTelegramMessage(chatId, text) {
   try {
     const res = await fetch('https://api.telegram.org/bot' + process.env.BOT_TOKEN + '/sendMessage', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: text })
+      body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'HTML' })
     });
     return await res.json();
   } catch(e) { return { ok: false }; }
@@ -27,12 +28,12 @@ module.exports = async (req, res) => {
   const telegramId = parseInt(user_id);
   const amountNum = parseFloat(amount);
 
-  if (!wallet.startsWith('UQ') && !wallet.startsWith('EQ')) return res.status(400).json({ ok: false, error: 'INVALID_WALLET' });
+  if (!wallet.startsWith('UQ') && !wallet.startsWith('EQ')) return res.status(400).json({ ok: false, error: 'Invalid wallet address' });
   if (amountNum < MIN_WITHDRAWAL) return res.status(400).json({ ok: false, error: 'MIN_0.1_USDT' });
 
   const { data: user } = await supabase.from('profiles').select('*').eq('telegram_id', telegramId).single();
   if (!user) return res.status(404).send('User not found');
-  if (parseFloat(user.balance || 0) < amountNum) return res.status(400).json({ ok: false, error: 'INSUFFICIENT_BALANCE' });
+  if (parseFloat(user.balance || 0) < amountNum) return res.status(400).json({ ok: false, error: 'Insufficient balance' });
 
   const netAmount = amountNum - FEE;
   const newBalance = parseFloat(user.balance || 0) - amountNum;
@@ -48,11 +49,26 @@ module.exports = async (req, res) => {
     metadata: { withdrawal_id: withdrawal.id, wallet: wallet }
   });
 
+  // 1. إشعار الأدمن
   const adminId = process.env.ADMIN_TELEGRAM_ID;
   if (adminId) {
-    const msg = 'طلب سحب جديد\n\nالمستخدم: ' + (user.first_name || 'User') + '\nID: ' + user.telegram_id + '\nالمبلغ: ' + amountNum.toFixed(4) + ' USDT\nالعنوان: ' + wallet + '\nرقم الطلب: ' + withdrawal.id;
-    await sendTelegramMessage(adminId, msg);
+    const adminMsg = 'طلب سحب جديد\n\n' +
+                     'المستخدم: ' + (user.first_name || 'User') + '\n' +
+                     'ID: ' + user.telegram_id + '\n' +
+                     'المبلغ: ' + amountNum + ' USDT\n' +
+                     'المحفظة: ' + wallet;
+    await sendTelegramMessage(adminId, adminMsg);
   }
 
-  res.status(200).json({ ok: true, withdrawal_id: withdrawal.id, net: netAmount });
+  // 2. إشعار قناة إثبات السحب (Payout Proofs)
+  const channelMsg = '🔔 <b>طلب سحب جديد (Payout Proof)</b>\n\n' +
+                     '👤 المستخدم: ' + (user.first_name || 'User') + '\n' +
+                     '🆔 ID: ' + user.telegram_id + '\n' +
+                     '💰 المبلغ المطلوب: ' + amountNum + ' USDT\n' +
+                     '📥 صافي المبلغ: ' + netAmount + ' USDT\n' +
+                     '💳 المحفظة: <code>' + wallet + '</code>\n' +
+                     '🔄 الحالة: قيد المعالجة (Pending)';
+  await sendTelegramMessage(PAYOUTS_CHANNEL_ID, channelMsg);
+
+  res.status(200).json({ ok: true, withdrawal_id: withdrawal.id, netAmount: netAmount });
 };
